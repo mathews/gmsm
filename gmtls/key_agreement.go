@@ -21,8 +21,10 @@ import (
 	"crypto/md5"
 	"crypto/rsa"
 	"crypto/sha1"
+	"encoding/base64"
 	"errors"
 	"io"
+	"log"
 	"math/big"
 
 	"github.com/tjfoc/gmsm/x509"
@@ -60,6 +62,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
 		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
 	}
 	// Perform constant time RSA PKCS#1 v1.5 decryption
+	log.Printf("rsaKeyAgreement->processClientKeyExchange: Decrypt ciphertext %s\n", base64.StdEncoding.EncodeToString(ciphertext))
 	preMasterSecret, err := priv.Decrypt(config.rand(), ciphertext, &rsa.PKCS1v15DecryptOptions{SessionKeyLen: 48})
 	if err != nil {
 		return nil, err
@@ -185,7 +188,7 @@ NextCandidate:
 	}
 
 	if ka.curveid == 0 {
-		return nil, errors.New("tls: no supported elliptic curves offered")
+		return nil, errors.New("ecdheKeyAgreement tls: no supported elliptic curves offered")
 	}
 
 	var ecdhePublic []byte

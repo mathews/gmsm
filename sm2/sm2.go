@@ -22,9 +22,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"io"
+	"log"
 	"math/big"
 
 	"github.com/tjfoc/gmsm/sm3"
@@ -53,6 +55,19 @@ type sm2Cipher struct {
 	HASH        []byte
 	CipherText  []byte
 }
+
+//Mode is the encoding sequence of ciphered text
+type Mode int32
+
+const (
+	//C1C2C3 is the old encoding sequence which is  used by default by TaSSL and gm-jsse
+	C1C2C3 Mode = 0
+	//C1C3C2 is what specified in GM/T 0003.4-2012
+	C1C3C2 Mode = 1
+)
+
+// DefaultMode default encoding sequence mode to be used
+var DefaultMode = C1C2C3
 
 // The SM2's private key contains the public key
 func (priv *PrivateKey) Public() crypto.PublicKey {
@@ -198,10 +213,10 @@ func Sm2Verify(pub *PublicKey, msg, uid []byte, r, s *big.Int) bool {
 	return x.Cmp(r) == 0
 }
 
-/* 
+/*
     za, err := ZA(pub, uid)
 	if err != nil {
-		return 
+		return
 	}
 	e, err := msgHash(za, msg)
 	hash=e.getBytes()
@@ -251,6 +266,7 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		x1, y1 := curve.ScalarBaseMult(k.Bytes())
 		x2, y2 := curve.ScalarMult(pub.X, pub.Y, k.Bytes())
 		x1Buf := x1.Bytes()
@@ -269,8 +285,11 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		if n := len(y2Buf); n < 32 {
 			y2Buf = append(zeroByteSlice()[:32-n], y2Buf...)
 		}
+		//encode x,y point, according to 4.2.9 of GM/T 003.1-2012, you should preceed with PC 0x04
+		c[0] = 0x04
 		c = append(c, x1Buf...) // x分量
 		c = append(c, y1Buf...) // y分量
+
 		tm := []byte{}
 		tm = append(tm, x2Buf...)
 		tm = append(tm, data...)
@@ -306,7 +325,7 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	}
 	c, ok := kdf(length, x2Buf, y2Buf)
 	if !ok {
-		return nil, errors.New("Decrypt: failed to decrypt")
+		return nil, errors.New("Decrypt: kdf failed to decrypt")
 	}
 	for i := 0; i < length; i++ {
 		c[i] ^= data[i+96]
@@ -317,7 +336,7 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	tm = append(tm, y2Buf...)
 	h := sm3.Sm3Sum(tm)
 	if bytes.Compare(h, data[64:96]) != 0 {
-		return c, errors.New("Decrypt: failed to decrypt")
+		return c, errors.New("Decrypt: Sm3Sum failed to decrypt")
 	}
 	return c, nil
 }
@@ -452,6 +471,8 @@ func DecryptAsn1(pub *PrivateKey, data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("DecryptAsn1 -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
 	return Decrypt(pub, cipher)
 }
 
@@ -621,7 +642,8 @@ func getLastBit(a *big.Int) uint {
 }
 
 // crypto.Decrypter
-func (priv *PrivateKey) Decrypt(_ io.Reader, msg []byte, _ crypto.DecrypterOpts) (plaintext []byte, err error){
+func (priv *PrivateKey) Decrypt(_ io.Reader, msg []byte, _ crypto.DecrypterOpts) (plaintext []byte, err error) {
+	log.Printf("PrivateKey->  D: %s X: %s Y: %s\n", priv.D, priv.X, priv.Y)
+	log.Printf("PrivateKey.Decrypt -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(msg))
 	return Decrypt(priv, msg)
 }
-

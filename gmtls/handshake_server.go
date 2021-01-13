@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/tjfoc/gmsm/x509"
 )
@@ -405,6 +406,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 	}
 
+	log.Printf("doFullHandshake client supported curves len = %d\n", len(hs.clientHello.supportedCurves))
 	keyAgreement := hs.suite.ka(c.vers)
 	skx, err := keyAgreement.generateServerKeyExchange(c.config, hs.cert, hs.cert, hs.clientHello, hs.hello)
 	if err != nil {

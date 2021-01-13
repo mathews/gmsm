@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"sync/atomic"
 
 	"github.com/tjfoc/gmsm/sm2"
@@ -364,6 +365,7 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	}
 
 	keyAgreement := hs.suite.ka(c.vers)
+	log.Printf("double doFullHandshake client supported curves len = %d\n", len(hs.clientHello.supportedCurves))
 	skx, err := keyAgreement.generateServerKeyExchange(c.config, &hs.cert[0], &hs.cert[1], hs.clientHello, hs.hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)

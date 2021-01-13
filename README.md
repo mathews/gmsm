@@ -1,4 +1,8 @@
 
+forked from https://github.com/tjfoc/gmsm 
+corrected some bugs and added some test codes.
+
+
 # gmsm
 GM SM2/3/4 library based on Golang
 =======

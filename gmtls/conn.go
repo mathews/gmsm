@@ -1206,6 +1206,9 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 
 // Close closes the connection.
 func (c *Conn) Close() error {
+	if c == nil {
+		return nil
+	}
 	// Interlock with Conn.Write above.
 	var x int32
 	for {
