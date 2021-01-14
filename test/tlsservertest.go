@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tjfoc/gmsm/gmtls"
-	"github.com/tjfoc/gmsm/x509"
+	"github.com/mathews/gmsm/gmtls"
+	"github.com/mathews/gmsm/x509"
 )
 
 // func TestTaSSLServer(t *testing.T) {
@@ -54,7 +54,7 @@ func main() {
 
 	// var wg sync.WaitGroup
 
-	listerner, err := gmtls.Listen("tcp", "192.168.11.230:4433", config)
+	listerner, err := gmtls.Listen("tcp", "127.0.0.1:4433", config)
 
 	if err != nil {
 		panic("failed to start Listener: " + err.Error())

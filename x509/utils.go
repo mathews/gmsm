@@ -10,7 +10,7 @@ import (
 	"encoding/pem"
 	"errors"
 
-	"github.com/tjfoc/gmsm/sm2"
+	"github.com/mathews/gmsm/sm2"
 )
 
 func ReadPrivateKeyFromPem(privateKeyPem []byte, pwd []byte) (*sm2.PrivateKey, error) {

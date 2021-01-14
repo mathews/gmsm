@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/tjfoc/gmsm/x509"
+	"github.com/mathews/gmsm/x509"
 )
 
 func typeof(v interface{}) string {

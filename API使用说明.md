@@ -3,12 +3,12 @@
 ## Go包安装
 
 ```bash
-go get -u github.com/tjfoc/gmsm
+go get -u github.com/mathews/gmsm
 ```
 ## SM2椭圆曲线公钥密码算法 - Public key cryptographic algorithm SM2 based on elliptic curves
 
 - 遵循的SM2标准号为： GM/T 0003.1-2012、GM/T 0003.2-2012、GM/T 0003.3-2012、GM/T 0003.4-2012、GM/T 0003.5-2012、GM/T 0009-2012、GM/T 0010-2012
-- go package： `github.com/tjfoc/gmsm/sm2`
+- go package： `github.com/mathews/gmsm/sm2`
 
 ### 代码示例
 
@@ -41,7 +41,7 @@ go get -u github.com/tjfoc/gmsm
 ```
 ## SM3密码杂凑算法 - SM3 cryptographic hash algorithm
 - 遵循的SM3标准号为： GM/T 0004-2012
-- g package：`github.com/tjfoc/gmsm/sm3`
+- g package：`github.com/mathews/gmsm/sm3`
 - `type SM3 struct` 是原生接口hash.Hash的一个实现
 
 ### 代码示例
@@ -57,13 +57,13 @@ go get -u github.com/tjfoc/gmsm
 ## SM4分组密码算法 - SM4 block cipher algorithm
 
 - 遵循的SM4标准号为:  GM/T 0002-2012
-- go package：`github.com/tjfoc/gmsm/sm4`
+- go package：`github.com/mathews/gmsm/sm4`
 
 ### 代码示例
 
 ```Go
     import  "crypto/cipher"
-    import  "github.com/tjfoc/gmsm/sm4"
+    import  "github.com/mathews/gmsm/sm4"
     import "fmt"
 
     func main(){
@@ -93,9 +93,9 @@ go get -u github.com/tjfoc/gmsm
 
 ### 具体功能测试代码参考
 ```Go
-github.com/tjfoc/gmsm/sm2/sm2_test.go  //sm2算法
-github.com/tjfoc/gmsm/sm3/sm3_test.go  //sm3算法
-github.com/tjfoc/gmsm/sm4/sm4_test.go  //sm4算法
-github.com/tjfoc/gmsm/x509/x509_test.go //x509国密证书
-github.com/tjfoc/gmsm/gmtls/gmcredentials/credentials_test.go  //国密tls
+github.com/mathews/gmsm/sm2/sm2_test.go  //sm2算法
+github.com/mathews/gmsm/sm3/sm3_test.go  //sm3算法
+github.com/mathews/gmsm/sm4/sm4_test.go  //sm4算法
+github.com/mathews/gmsm/x509/x509_test.go //x509国密证书
+github.com/mathews/gmsm/gmtls/gmcredentials/credentials_test.go  //国密tls
 ```

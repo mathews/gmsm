@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	sm509 "github.com/tjfoc/gmsm/x509"
+	sm509 "github.com/mathews/gmsm/x509"
 )
 
 func TestSm2Sign(t *testing.T) {

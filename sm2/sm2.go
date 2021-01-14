@@ -26,10 +26,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"log"
 	"math/big"
 
-	"github.com/tjfoc/gmsm/sm3"
+	"github.com/mathews/gmsm/log"
+
+	"github.com/mathews/gmsm/sm3"
 )
 
 var (
@@ -67,7 +68,7 @@ const (
 )
 
 // DefaultMode default encoding sequence mode to be used
-var DefaultMode = C1C2C3
+const DefaultMode = C1C2C3
 
 // The SM2's private key contains the public key
 func (priv *PrivateKey) Public() crypto.PublicKey {
@@ -285,8 +286,7 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		if n := len(y2Buf); n < 32 {
 			y2Buf = append(zeroByteSlice()[:32-n], y2Buf...)
 		}
-		//encode x,y point, according to 4.2.9 of GM/T 003.1-2012, you should preceed with PC 0x04
-		c[0] = 0x04
+
 		c = append(c, x1Buf...) // x分量
 		c = append(c, y1Buf...) // y分量
 
@@ -295,15 +295,18 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		tm = append(tm, data...)
 		tm = append(tm, y2Buf...)
 		h := sm3.Sm3Sum(tm)
+
 		c = append(c, h...)
 		ct, ok := kdf(length, x2Buf, y2Buf) // 密文
 		if !ok {
 			continue
 		}
 		c = append(c, ct...)
+
 		for i := 0; i < length; i++ {
 			c[96+i] ^= data[i]
 		}
+		//encode x,y point, according to 4.2.9 of GM/T 003.1-2012, you should preceed with PC 0x04
 		return append([]byte{0x04}, c...), nil
 	}
 }
@@ -330,6 +333,8 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	for i := 0; i < length; i++ {
 		c[i] ^= data[i+96]
 	}
+	log.Logger.Debugf("decypted text length: %d\n", len(c))
+	log.Logger.Debugf("decypted text: %s\n", base64.StdEncoding.EncodeToString(c))
 	tm := []byte{}
 	tm = append(tm, x2Buf...)
 	tm = append(tm, c...)
@@ -472,7 +477,7 @@ func DecryptAsn1(pub *PrivateKey, data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Printf("DecryptAsn1 -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
+	log.Logger.Debugf("DecryptAsn1 -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
 	return Decrypt(pub, cipher)
 }
 
@@ -643,7 +648,7 @@ func getLastBit(a *big.Int) uint {
 
 // crypto.Decrypter
 func (priv *PrivateKey) Decrypt(_ io.Reader, msg []byte, _ crypto.DecrypterOpts) (plaintext []byte, err error) {
-	log.Printf("PrivateKey->  D: %s X: %s Y: %s\n", priv.D, priv.X, priv.Y)
-	log.Printf("PrivateKey.Decrypt -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(msg))
+	log.Logger.Debugf("PrivateKey->  D: %s X: %s Y: %s\n", priv.D, priv.X, priv.Y)
+	log.Logger.Debugf("PrivateKey.Decrypt -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(msg))
 	return Decrypt(priv, msg)
 }

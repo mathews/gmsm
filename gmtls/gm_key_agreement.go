@@ -14,11 +14,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"log"
 	"math/big"
 
-	"github.com/tjfoc/gmsm/sm2"
-	"github.com/tjfoc/gmsm/x509"
+	"github.com/mathews/gmsm/log"
+
+	"github.com/mathews/gmsm/sm2"
+	"github.com/mathews/gmsm/x509"
 
 	"golang.org/x/crypto/curve25519"
 )
@@ -80,14 +81,14 @@ func (ka *ecdheKeyAgreementGM) generateServerKeyExchange(config *Config, signCer
 	//NextCandidate:
 	//	for _, candidate := range preferredCurves {
 	for _, candidate := range preferredCurves {
-		log.Printf("preferredCurves curveid = %d", candidate)
-		log.Printf("client supportedCurves len = %d", len(clientHello.supportedCurves))
+		log.Logger.Debugf("preferredCurves curveid = %d", candidate)
+		log.Logger.Debugf("client supportedCurves len = %d", len(clientHello.supportedCurves))
 		for _, c := range clientHello.supportedCurves {
-			log.Printf("client supportedCurves curveid = %d", c)
+			log.Logger.Debugf("client supportedCurves curveid = %d", c)
 			if candidate == c {
 				ka.curveid = c
-	//		for _, c := range clientHello.supportedCurves {
-				log.Printf("ecdheKeyAgreementGM curveid = %d", c)
+				//		for _, c := range clientHello.supportedCurves {
+				log.Logger.Debugf("ecdheKeyAgreementGM curveid = %d", c)
 				break
 			}
 		}
@@ -104,7 +105,7 @@ func (ka *ecdheKeyAgreementGM) generateServerKeyExchange(config *Config, signCer
 		if _, err := io.ReadFull(config.rand(), scalar[:]); err != nil {
 			return nil, err
 		}
-	//			}
+		//			}
 		curve25519.ScalarBaseMult(&public, &scalar)
 		ka.privateKey = scalar[:]
 		ecdhePublic = public[:]
@@ -113,7 +114,7 @@ func (ka *ecdheKeyAgreementGM) generateServerKeyExchange(config *Config, signCer
 		if !ok {
 			return nil, errors.New("tls: preferredCurves includes unsupported curve")
 		}
-	//		}
+		//		}
 		var x, y *big.Int
 		var err error
 		ka.privateKey, x, y, err = elliptic.GenerateKey(curve, config.rand())
@@ -179,7 +180,7 @@ func (ka *ecdheKeyAgreementGM) generateServerKeyExchange(config *Config, signCer
 }
 
 func (ka *ecdheKeyAgreementGM) processClientKeyExchange(config *Config, cert *Certificate, ckx *clientKeyExchangeMsg, version uint16) ([]byte, error) {
-	panic("")
+	// panic("")
 	//	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
 	//		return nil, errClientKeyExchange
 	if len(ckx.ciphertext) == 0 || int(ckx.ciphertext[0]) != len(ckx.ciphertext)-1 {
@@ -190,7 +191,7 @@ func (ka *ecdheKeyAgreementGM) processClientKeyExchange(config *Config, cert *Ce
 		if len(ckx.ciphertext) != 1+32 {
 			return nil, errClientKeyExchange
 		}
-	//
+		//
 		var theirPublic, sharedKey, scalar [32]byte
 		copy(theirPublic[:], ckx.ciphertext[1:])
 		copy(scalar[:], ka.privateKey)
@@ -234,7 +235,6 @@ func (ka *ecdheKeyAgreementGM) processServerKeyExchange(config *Config, clientHe
 	if len(sig) < 2 {
 		return errServerKeyExchange
 	}
-
 
 	//according to GMT0024, we don't care about
 	curve := sm2.P256Sm2()
@@ -359,16 +359,21 @@ func (ka *eccKeyAgreementGM) processClientKeyExchange(config *Config, cert *Cert
 
 	cipher := ckx.ciphertext[2:]
 
-	decrypter, ok := cert.PrivateKey.(crypto.Decrypter)
-	if !ok {
-		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
-	}
-	log.Printf("eccKeyAgreementGM->processClientKeyExchange Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
-	plain, err := decrypter.Decrypt(config.rand(), cipher, nil)
+	// decrypter, ok := cert.PrivateKey.(crypto.Decrypter)
+	// if !ok {
+	// 	return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
+	// }
+	// log.Logger.Debugf("eccKeyAgreementGM->processClientKeyExchange Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
+	// plain, err := decrypter.Decrypt(config.rand(), cipher, nil)
+
+	log.Logger.Debugf("privateKey type %s\n", cert.PrivateKey)
+	plain, err := sm2.DecryptAsn1(cert.PrivateKey.(*sm2.PrivateKey), cipher)
+
 	if err != nil {
+		log.Logger.Debugf("Decrypt error: %s\n", err.Error())
 		return nil, err
 	}
-
+	log.Logger.Debugf("Decrypted key message: %s\n", base64.StdEncoding.EncodeToString(plain))
 	if len(plain) != 48 {
 		return nil, errClientKeyExchange
 	}
@@ -442,7 +447,9 @@ func (ka *eccKeyAgreementGM) generateClientKeyExchange(config *Config, clientHel
 	}
 	pubKey := ka.encipherCert.PublicKey.(*ecdsa.PublicKey)
 	sm2PubKey := &sm2.PublicKey{Curve: pubKey.Curve, X: pubKey.X, Y: pubKey.Y}
-	encrypted, err := sm2.Encrypt(sm2PubKey, preMasterSecret, config.rand())
+	//FIXME
+	// encrypted, err := sm2.Encrypt(sm2PubKey, preMasterSecret, config.rand())
+	encrypted, err := sm2.EncryptAsn1(sm2PubKey, preMasterSecret, config.rand())
 	if err != nil {
 		return nil, nil, err
 	}

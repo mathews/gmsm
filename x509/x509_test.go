@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tjfoc/gmsm/sm2"
+	"github.com/mathews/gmsm/sm2"
 )
 
 func TestX509(t *testing.T) {
@@ -38,7 +38,7 @@ func TestX509(t *testing.T) {
 		t.Fatal(err)
 	}
 	pubKey, _ := priv.Public().(*sm2.PublicKey)
-	pubkeyPem, err := WritePublicKeyToPem(pubKey)       // 生成公钥文件
+	pubkeyPem, err := WritePublicKeyToPem(pubKey) // 生成公钥文件
 
 	// err = ioutil.WriteFile("/home/mathews/ssm2.pem", pubkeyPem, 0777)
 

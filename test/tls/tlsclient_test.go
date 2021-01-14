@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tjfoc/gmsm/gmtls"
-	"github.com/tjfoc/gmsm/x509"
+	"github.com/mathews/gmsm/gmtls"
+	"github.com/mathews/gmsm/x509"
 )
 
 func TestTaSSLClient(t *testing.T) {
-	// t.SkipNow()
+	t.SkipNow()
 
 	caArray, err := ioutil.ReadFile("/home/mathews/dev/sm-workspace/TASSL-1.1.1b/tassl_demo/cert/certs/CA.pem")
 	if err != nil {
@@ -59,7 +59,7 @@ func TestTaSSLClient(t *testing.T) {
 
 func TestHttpsClient(t *testing.T) {
 
-	t.SkipNow()
+	// t.SkipNow()
 
 	caArray, err := ioutil.ReadFile("/home/mathews/dev/sm-workspace/TASSL-1.1.1b/tassl_demo/cert/certs/CA.pem")
 	if err != nil {
@@ -115,7 +115,8 @@ func TestHttpsClient(t *testing.T) {
 		// Timeout: time.Duration(6000) * time.Microsecond,
 	}
 
-	resp, err := client.Get("https://192.168.11.230:4433/")
+	// resp, err := client.Get("https://127.0.0.1:4433/")
+	resp, err := client.Get("https://192.168.11.60:445/")
 	if err != nil {
 		panic("failed to Get: " + err.Error())
 	}
