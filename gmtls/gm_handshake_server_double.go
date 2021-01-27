@@ -14,9 +14,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"sync/atomic"
 
+	"github.com/mathews/gmsm/log"
 	"github.com/mathews/gmsm/sm2"
 	"github.com/mathews/gmsm/x509"
 )
@@ -365,7 +365,7 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	}
 
 	keyAgreement := hs.suite.ka(c.vers)
-	log.Printf("double doFullHandshake client supported curves len = %d\n", len(hs.clientHello.supportedCurves))
+	log.Logger.Debugf("double doFullHandshake client supported curves len = %d\n", len(hs.clientHello.supportedCurves))
 	skx, err := keyAgreement.generateServerKeyExchange(c.config, &hs.cert[0], &hs.cert[1], hs.clientHello, hs.hello)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
@@ -426,6 +426,7 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	// If we requested a client certificate, then the client must send a
 	// certificate message, even if it's empty.
 	if c.config.ClientAuth >= RequestClientCert {
+		log.Logger.Debugf("sending client certificate request")
 		if certMsg, ok = msg.(*certificateMsg); !ok {
 			c.sendAlert(alertUnexpectedMessage)
 			return unexpectedMessageError(certMsg, msg)
@@ -458,6 +459,8 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 		c.sendAlert(alertUnexpectedMessage)
 		return unexpectedMessageError(ckx, msg)
 	}
+
+	log.Logger.Debugf("clientKeyExchangeMsg raw=%x  ciphertext=%x \n", ckx.raw, ckx.ciphertext)
 	hs.finishedHash.Write(ckx.marshal())
 
 	preMasterSecret, err := keyAgreement.processClientKeyExchange(c.config, &hs.cert[1], ckx, c.vers)

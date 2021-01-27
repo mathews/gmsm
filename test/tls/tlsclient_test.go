@@ -115,8 +115,8 @@ func TestHttpsClient(t *testing.T) {
 		// Timeout: time.Duration(6000) * time.Microsecond,
 	}
 
-	// resp, err := client.Get("https://127.0.0.1:4433/")
-	resp, err := client.Get("https://192.168.11.60:445/")
+	resp, err := client.Get("https://192.168.11.230:4433/")
+	// resp, err := client.Get("https://192.168.11.60:445/")
 	if err != nil {
 		panic("failed to Get: " + err.Error())
 	}

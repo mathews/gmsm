@@ -22,7 +22,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/asn1"
-	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -56,19 +55,6 @@ type sm2Cipher struct {
 	HASH        []byte
 	CipherText  []byte
 }
-
-//Mode is the encoding sequence of ciphered text
-type Mode int32
-
-const (
-	//C1C2C3 is the old encoding sequence which is  used by default by TaSSL and gm-jsse
-	C1C2C3 Mode = 0
-	//C1C3C2 is what specified in GM/T 0003.4-2012
-	C1C3C2 Mode = 1
-)
-
-// DefaultMode default encoding sequence mode to be used
-const DefaultMode = C1C2C3
 
 // The SM2's private key contains the public key
 func (priv *PrivateKey) Public() crypto.PublicKey {
@@ -334,12 +320,15 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 		c[i] ^= data[i+96]
 	}
 	log.Logger.Debugf("decypted text length: %d\n", len(c))
-	log.Logger.Debugf("decypted text: %s\n", base64.StdEncoding.EncodeToString(c))
+	log.Logger.Debugf("decypted text: %x\n", c)
 	tm := []byte{}
 	tm = append(tm, x2Buf...)
 	tm = append(tm, c...)
 	tm = append(tm, y2Buf...)
 	h := sm3.Sm3Sum(tm)
+	log.Logger.Debugf("sm3sum indata: %x\n", tm)
+	log.Logger.Debugf("computed sum: %x len: %d\n", h, len(h))
+	log.Logger.Debugf("sum in data: %x  len: %d\n", data[64:96], len(data[64:96]))
 	if bytes.Compare(h, data[64:96]) != 0 {
 		return c, errors.New("Decrypt: Sm3Sum failed to decrypt")
 	}
@@ -472,12 +461,15 @@ func EncryptAsn1(pub *PublicKey, data []byte, rand io.Reader) ([]byte, error) {
 sm2解密，解析asn.1编码格式的密文内容
 */
 func DecryptAsn1(pub *PrivateKey, data []byte) ([]byte, error) {
+
+	log.Logger.Debugf("DecryptAsn1 -- going to Unmarshal %x\n", data)
+
 	cipher, err := CipherUnmarshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Logger.Debugf("DecryptAsn1 -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
+	log.Logger.Debugf("DecryptAsn1 -- going to Decrypt %x\n", cipher)
 	return Decrypt(pub, cipher)
 }
 
@@ -498,17 +490,36 @@ func CipherMarshal(data []byte) ([]byte, error) {
 	return asn1.Marshal(sm2Cipher{x, y, hash, cipherText})
 }
 
+func encodeNegNumber(num *big.Int) ([]byte, error) {
+	btxt, err := asn1.Marshal(num)
+	if err != nil {
+		return nil, err
+	} else {
+		return btxt[2:], nil
+	}
+}
+
 /*
 sm2密文asn.1编码格式转C1|C3|C2拼接格式
 */
 func CipherUnmarshal(data []byte) ([]byte, error) {
 	var cipher sm2Cipher
+
 	_, err := asn1.Unmarshal(data, &cipher)
 	if err != nil {
 		return nil, err
 	}
-	x := cipher.XCoordinate.Bytes()
-	y := cipher.YCoordinate.Bytes()
+	//FIXME asn1 may transform the negative bignum, you should tranform back before going
+	// x := cipher.XCoordinate.Bytes()
+	x, err := encodeNegNumber(cipher.XCoordinate)
+	if err != nil {
+		return nil, err
+	}
+	// y := cipher.YCoordinate.Bytes()
+	y, err := encodeNegNumber(cipher.YCoordinate)
+	if err != nil {
+		return nil, err
+	}
 	hash := cipher.HASH
 	if err != nil {
 		return nil, err
@@ -517,11 +528,18 @@ func CipherUnmarshal(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if n := len(x); n < 32 {
+		x = append(zeroByteSlice()[:32-n], x...)
+	}
+	if n := len(y); n < 32 {
+		y = append(zeroByteSlice()[:32-n], y...)
+	}
 	c := []byte{}
 	c = append(c, x...)          // x分量
 	c = append(c, y...)          // y分
 	c = append(c, hash...)       // x分量
 	c = append(c, cipherText...) // y分
+	// return c, nil
 	return append([]byte{0x04}, c...), nil
 }
 
@@ -649,6 +667,6 @@ func getLastBit(a *big.Int) uint {
 // crypto.Decrypter
 func (priv *PrivateKey) Decrypt(_ io.Reader, msg []byte, _ crypto.DecrypterOpts) (plaintext []byte, err error) {
 	log.Logger.Debugf("PrivateKey->  D: %s X: %s Y: %s\n", priv.D, priv.X, priv.Y)
-	log.Logger.Debugf("PrivateKey.Decrypt -- going to Decrypt %s\n", base64.StdEncoding.EncodeToString(msg))
+	log.Logger.Debugf("PrivateKey.Decrypt -- going to Decrypt %x\n", msg)
 	return Decrypt(priv, msg)
 }

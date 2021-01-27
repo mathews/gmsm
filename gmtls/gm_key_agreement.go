@@ -356,7 +356,7 @@ func (ka *eccKeyAgreementGM) processClientKeyExchange(config *Config, cert *Cert
 	if int(ckx.ciphertext[0]<<8|ckx.ciphertext[1]) != len(ckx.ciphertext)-2 {
 		return nil, errClientKeyExchange
 	}
-
+	//FIXME ciphertext of clientKeyExchangeMsg
 	cipher := ckx.ciphertext[2:]
 
 	// decrypter, ok := cert.PrivateKey.(crypto.Decrypter)
@@ -365,9 +365,10 @@ func (ka *eccKeyAgreementGM) processClientKeyExchange(config *Config, cert *Cert
 	// }
 	// log.Logger.Debugf("eccKeyAgreementGM->processClientKeyExchange Decrypt %s\n", base64.StdEncoding.EncodeToString(cipher))
 	// plain, err := decrypter.Decrypt(config.rand(), cipher, nil)
+	sm2cert := cert.PrivateKey.(*sm2.PrivateKey)
 
-	log.Logger.Debugf("privateKey type %s\n", cert.PrivateKey)
-	plain, err := sm2.DecryptAsn1(cert.PrivateKey.(*sm2.PrivateKey), cipher)
+	log.Logger.Debugf("privateKey type %s\n", sm2cert.D)
+	plain, err := sm2.DecryptAsn1(sm2cert, cipher)
 
 	if err != nil {
 		log.Logger.Debugf("Decrypt error: %s\n", err.Error())

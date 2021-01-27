@@ -119,7 +119,7 @@ func (sm3 *SM3) update(msg []byte) {
 	}
 	sm3.digest[0], sm3.digest[1], sm3.digest[2], sm3.digest[3], sm3.digest[4], sm3.digest[5], sm3.digest[6], sm3.digest[7] = a, b, c, d, e, f, g, h
 }
-func (sm3 *SM3) update2(msg []byte,) [8]uint32 {
+func (sm3 *SM3) update2(msg []byte) [8]uint32 {
 	var w [68]uint32
 	var w1 [64]uint32
 
@@ -199,6 +199,7 @@ func (sm3 *SM3) Size() int { return 32 }
 // This can be skipped for a newly-created hash state; the default zero-allocated state is correct.
 func (sm3 *SM3) Reset() {
 	// Reset digest
+
 	sm3.digest[0] = 0x7380166f
 	sm3.digest[1] = 0x4914b2b9
 	sm3.digest[2] = 0x172442d7
@@ -254,6 +255,9 @@ func Sm3Sum(data []byte) []byte {
 	var sm3 SM3
 
 	sm3.Reset()
-	_, _ = sm3.Write(data)
-	return sm3.Sum(nil)
+	//FIXME
+	// _, _ = sm3.Write(data)
+	// return sm3.Sum(nil)
+
+	return sm3.Sum(data)
 }
