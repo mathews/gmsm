@@ -1,8 +1,9 @@
 package sm2
 
 import (
-	"encoding/asn1"
 	"math/big"
+
+	"encoding/asn1"
 )
 
 func Decompress(a []byte) *PublicKey {
@@ -41,8 +42,6 @@ func Compress(a *PublicKey) []byte {
 	return buf
 }
 
-
-
 func SignDigitToSignData(r, s *big.Int) ([]byte, error) {
 	return asn1.Marshal(sm2Signature{r, s})
 }
@@ -56,4 +55,3 @@ func SignDataToSignDigit(sign []byte) (*big.Int, *big.Int, error) {
 	}
 	return sm2Sign.R, sm2Sign.S, nil
 }
-

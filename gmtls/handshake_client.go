@@ -29,6 +29,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/mathews/gmsm/log"
 	"github.com/mathews/gmsm/x509"
 )
 
@@ -185,6 +186,7 @@ func (c *Conn) clientHandshake() error {
 			session: session,
 		}
 		if err = hs.handshake(); err != nil {
+			log.Logger.Errorf("error handshake %s", err.Error())
 			return err
 		}
 		// If we had a successful handshake and hs.session is different from

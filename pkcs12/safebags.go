@@ -6,8 +6,9 @@ package pkcs12
 
 import (
 	"crypto/rand"
-	"encoding/asn1"
 	"errors"
+
+	"github.com/mathews/asn1"
 )
 
 var (

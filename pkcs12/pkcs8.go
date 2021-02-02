@@ -10,10 +10,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"errors"
 	"fmt"
 	"math/big"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 )

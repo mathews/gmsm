@@ -17,13 +17,14 @@ package x509
 
 import (
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
 	"testing"
 	"time"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 )

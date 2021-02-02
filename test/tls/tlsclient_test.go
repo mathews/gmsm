@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -13,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mathews/gmsm/gmtls"
+	"github.com/mathews/gmsm/log"
 	"github.com/mathews/gmsm/x509"
 )
 
@@ -48,8 +48,8 @@ func TestTaSSLClient(t *testing.T) {
 	conn, err := gmtls.Dial("tcp", "192.168.11.60:445", config)
 	defer conn.Close()
 
-	log.Printf("remote %s\n", conn.RemoteAddr().String())
-	log.Printf("local %s\n", conn.LocalAddr().String())
+	log.Logger.Infof("remote %s\n", conn.RemoteAddr().String())
+	log.Logger.Infof("local %s\n", conn.LocalAddr().String())
 
 	if err != nil {
 		panic("failed to connect: " + err.Error())
@@ -98,34 +98,39 @@ func TestHttpsClient(t *testing.T) {
 	// 	panic("failed to connect: " + err.Error())
 	// }
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			// TLSClientConfig: &tls.Config{
-			// 	InsecureSkipVerify: true,
-			// 	CipherSuites:       []uint16{gmtls.GMTLS_SM2_WITH_SM4_SM3, gmtls.GMTLS_ECDHE_SM2_WITH_SM4_SM3},
-			// 	Rand:               rand.Reader,
-			// },
-			// Dial: func(network, addr string) (net.Conn, error) {
-			// 	return gmtls.Dial(network, addr, config)
-			// },
-			DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return gmtls.Dial(network, addr, config)
+	for i := 0; i < 1000; i++ {
+
+		client := &http.Client{
+			Transport: &http.Transport{
+				// TLSClientConfig: &tls.Config{
+				// 	InsecureSkipVerify: true,
+				// 	CipherSuites:       []uint16{gmtls.GMTLS_SM2_WITH_SM4_SM3, gmtls.GMTLS_ECDHE_SM2_WITH_SM4_SM3},
+				// 	Rand:               rand.Reader,
+				// },
+				// Dial: func(network, addr string) (net.Conn, error) {
+				// 	return gmtls.Dial(network, addr, config)
+				// },
+				DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+					return gmtls.Dial(network, addr, config)
+				},
 			},
-		},
-		// Timeout: time.Duration(6000) * time.Microsecond,
+			// Timeout: time.Duration(6000) * time.Microsecond,
+		}
+
+		resp, err := client.Get("https://192.168.11.230:4433/")
+		// resp, err := client.Get("https://192.168.11.60:445/")
+		if err != nil {
+			panic("failed to Get: " + err.Error())
+		}
+
+		text := make([]byte, int(resp.ContentLength))
+
+		resp.Body.Read(text)
+
+		log.Logger.Infof("resp status: %s, resp: %s", resp.Status, text)
+		if resp.Status != "200 OK" {
+			t.FailNow()
+		}
 	}
-
-	resp, err := client.Get("https://192.168.11.230:4433/")
-	// resp, err := client.Get("https://192.168.11.60:445/")
-	if err != nil {
-		panic("failed to Get: " + err.Error())
-	}
-	fmt.Printf("resp status: %s\n", resp.Status)
-
-	text := make([]byte, int(resp.ContentLength))
-
-	resp.Body.Read(text)
-
-	fmt.Printf("resp: %s\n", text)
 
 }

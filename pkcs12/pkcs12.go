@@ -16,11 +16,12 @@ import (
 	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"io/ioutil"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 	x "github.com/mathews/gmsm/x509"

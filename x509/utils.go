@@ -6,9 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/asn1"
 	"encoding/pem"
 	"errors"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 )

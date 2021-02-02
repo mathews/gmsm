@@ -26,11 +26,12 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"errors"
 	"hash"
 	"math/big"
 	"reflect"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 )

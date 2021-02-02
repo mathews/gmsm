@@ -53,10 +53,12 @@ func (c *Conn) serverHandshakeGM() error {
 	// For an overview of TLS handshaking, see https://tools.ietf.org/html/rfc5246#section-7.3
 	c.buffering = true
 	if isResume {
+		log.Logger.Debug("starting doResumeHandshake...")
 		// The client has included a session ticket and so we do an abbreviated handshake.
 		if err := hs.doResumeHandshake(); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting establishKeys...")
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
@@ -68,13 +70,16 @@ func (c *Conn) serverHandshakeGM() error {
 				return err
 			}
 		}
+		log.Logger.Debug("starting sendFinished...")
 		if err := hs.sendFinished(c.serverFinished[:]); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting flush...")
 		if _, err := c.flush(); err != nil {
 			return err
 		}
 		c.clientFinishedIsFirst = false
+		log.Logger.Debug("starting readFinished...")
 		if err := hs.readFinished(nil); err != nil {
 			return err
 		}
@@ -82,31 +87,37 @@ func (c *Conn) serverHandshakeGM() error {
 	} else {
 		// The client didn't include a session ticket, or it wasn't
 		// valid so we do a full handshake.
+		log.Logger.Debug("starting doFullHandshake...")
 		if err := hs.doFullHandshake(); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting establishKeys...")
 		if err := hs.establishKeys(); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting readFinished...")
 		if err := hs.readFinished(c.clientFinished[:]); err != nil {
 			return err
 		}
 		c.clientFinishedIsFirst = true
 		c.buffering = true
+		log.Logger.Debug("starting sendSessionTicket...")
 		if err := hs.sendSessionTicket(); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting sendFinished...")
 		if err := hs.sendFinished(nil); err != nil {
 			return err
 		}
+		log.Logger.Debug("starting flush...")
 		if _, err := c.flush(); err != nil {
 			return err
 		}
 	}
-
+	log.Logger.Debug("starting ekmFromMasterSecret...")
 	c.ekm = ekmFromMasterSecret(c.vers, hs.suite, hs.masterSecret, hs.clientHello.random, hs.hello.random)
 	atomic.StoreUint32(&c.handshakeStatus, 1)
-
+	log.Logger.Debug("serverHandshakeGM finished at last")
 	return nil
 }
 
@@ -368,12 +379,14 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	log.Logger.Debugf("double doFullHandshake client supported curves len = %d\n", len(hs.clientHello.supportedCurves))
 	skx, err := keyAgreement.generateServerKeyExchange(c.config, &hs.cert[0], &hs.cert[1], hs.clientHello, hs.hello)
 	if err != nil {
+		log.Logger.Errorf("error generateServerKeyExchange %s", err.Error())
 		c.sendAlert(alertHandshakeFailure)
 		return err
 	}
 	if skx != nil {
 		hs.finishedHash.Write(skx.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, skx.marshal()); err != nil {
+			log.Logger.Errorf("error exchange skx %s", err.Error())
 			return err
 		}
 	}
@@ -400,6 +413,7 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 		}
 		hs.finishedHash.Write(certReq.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certReq.marshal()); err != nil {
+			log.Logger.Errorf("error read certReq response %s", err.Error())
 			return err
 		}
 	}
@@ -407,10 +421,12 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	helloDone := new(serverHelloDoneMsg)
 	hs.finishedHash.Write(helloDone.marshal())
 	if _, err := c.writeRecord(recordTypeHandshake, helloDone.marshal()); err != nil {
+		log.Logger.Errorf("error read serverHelloDoneMsg response %s", err.Error())
 		return err
 	}
 
 	if _, err := c.flush(); err != nil {
+		log.Logger.Errorf("error flush connection %s", err.Error())
 		return err
 	}
 
@@ -418,7 +434,7 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 
 	msg, err := c.readHandshake()
 	if err != nil {
-		fmt.Println("readHandshake error:", err)
+		log.Logger.Errorf("readHandshake error %s", err.Error())
 		return err
 	}
 
@@ -444,11 +460,13 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 
 		pub, err = hs.processCertsFromClient(certMsg.certificates)
 		if err != nil {
+			log.Logger.Errorf("processCertsFromClient error %s", err.Error())
 			return err
 		}
 
 		msg, err = c.readHandshake()
 		if err != nil {
+			log.Logger.Errorf("readHandshake error %s", err.Error())
 			return err
 		}
 	}
@@ -466,11 +484,18 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 	preMasterSecret, err := keyAgreement.processClientKeyExchange(c.config, &hs.cert[1], ckx, c.vers)
 	if err != nil {
 		c.sendAlert(alertHandshakeFailure)
+		log.Logger.Errorf("processClientKeyExchange error %s", err.Error())
 		return err
 	}
+
+	log.Logger.Debugf("got preMasterSecret: %x", preMasterSecret)
 	hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret, hs.clientHello.random, hs.hello.random)
+
+	log.Logger.Debugf("generated masterSecret: %x", hs.masterSecret)
+
 	if err := c.config.writeKeyLog(hs.clientHello.random, hs.masterSecret); err != nil {
 		c.sendAlert(alertInternalError)
+		log.Logger.Errorf("writeKeyLog error %s", err.Error())
 		return err
 	}
 
@@ -491,12 +516,15 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 			return unexpectedMessageError(certVerify, msg)
 		}
 
+		log.Logger.Debugf("received certificateVerifyMsg %s", certVerify)
 		// Determine the signature type.
 		_, sigType, hashFunc, err := pickSignatureAlgorithm(pub, []SignatureScheme{certVerify.signatureAlgorithm}, supportedSignatureAlgorithms, c.vers)
 		if err != nil {
 			c.sendAlert(alertIllegalParameter)
+			log.Logger.Errorf("pickSignatureAlgorithm error %s", err.Error())
 			return err
 		}
+		log.Logger.Debugf("determine sigType %d", sigType)
 
 		var digest []byte
 		if digest, err = hs.finishedHash.hashForClientCertificate(sigType, hashFunc, hs.masterSecret); err == nil {
@@ -507,11 +535,14 @@ func (hs *serverHandshakeStateGM) doFullHandshake() error {
 			return errors.New("tls: could not validate signature of connection nonces: " + err.Error())
 		}
 
+		log.Logger.Debugf("finishedHash digest %x", digest)
+
 		hs.finishedHash.Write(certVerify.marshal())
 	}
 
 	hs.finishedHash.discardHandshakeBuffer()
 
+	log.Logger.Debug("doFullHandshake finished at last")
 	return nil
 }
 

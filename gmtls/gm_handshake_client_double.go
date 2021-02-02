@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
+	"github.com/mathews/gmsm/log"
 	"github.com/mathews/gmsm/sm2"
 	"github.com/mathews/gmsm/x509"
 )
@@ -69,11 +70,13 @@ func (hs *clientHandshakeStateGM) handshake() error {
 
 	// send ClientHello
 	if _, err := c.writeRecord(recordTypeHandshake, hs.hello.marshal()); err != nil {
+		log.Logger.Errorf("error send ClientHello --- %s", err.Error())
 		return err
 	}
 
 	msg, err := c.readHandshake()
 	if err != nil {
+		log.Logger.Errorf("error read ClientHello response --- %s", err.Error())
 		return err
 	}
 
@@ -89,11 +92,13 @@ func (hs *clientHandshakeStateGM) handshake() error {
 	}
 
 	if err = hs.pickCipherSuite(); err != nil {
+		log.Logger.Errorf("error pickCipherSuite --- %s", err.Error())
 		return err
 	}
 
 	isResume, err := hs.processServerHello()
 	if err != nil {
+		log.Logger.Errorf("error processServerHello --- %s", err.Error())
 		return err
 	}
 
@@ -113,39 +118,50 @@ func (hs *clientHandshakeStateGM) handshake() error {
 	c.buffering = true
 	if isResume {
 		if err := hs.establishKeys(); err != nil {
+			log.Logger.Errorf("error establishKeys --- %s", err.Error())
 			return err
 		}
 		if err := hs.readSessionTicket(); err != nil {
+			log.Logger.Errorf("error readSessionTicket --- %s", err.Error())
 			return err
 		}
 		if err := hs.readFinished(c.serverFinished[:]); err != nil {
+			log.Logger.Errorf("error readFinished --- %s", err.Error())
 			return err
 		}
 		c.clientFinishedIsFirst = false
 		if err := hs.sendFinished(c.clientFinished[:]); err != nil {
+			log.Logger.Errorf("error sendFinished --- %s", err.Error())
 			return err
 		}
 		if _, err := c.flush(); err != nil {
+			log.Logger.Errorf("error flush connection --- %s", err.Error())
 			return err
 		}
 	} else {
 		if err := hs.doFullHandshake(); err != nil {
+			log.Logger.Errorf("error doFullHandshake--- %s", err.Error())
 			return err
 		}
 		if err := hs.establishKeys(); err != nil {
+			log.Logger.Errorf("error establishKeys--- %s", err.Error())
 			return err
 		}
 		if err := hs.sendFinished(c.clientFinished[:]); err != nil {
+			log.Logger.Errorf("error sendFinished--- %s", err.Error())
 			return err
 		}
 		if _, err := c.flush(); err != nil {
+			log.Logger.Errorf("error flush connection--- %s", err.Error())
 			return err
 		}
 		c.clientFinishedIsFirst = true
 		if err := hs.readSessionTicket(); err != nil {
+			log.Logger.Errorf("error readSessionTicket--- %s", err.Error())
 			return err
 		}
 		if err := hs.readFinished(c.serverFinished[:]); err != nil {
+			log.Logger.Errorf("error readFinished--- %s", err.Error())
 			return err
 		}
 	}
@@ -154,6 +170,7 @@ func (hs *clientHandshakeStateGM) handshake() error {
 	c.didResume = isResume
 	atomic.StoreUint32(&c.handshakeStatus, 1)
 
+	log.Logger.Debug("handshake finished")
 	return nil
 }
 
@@ -172,6 +189,7 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 
 	msg, err := c.readHandshake()
 	if err != nil {
+		log.Logger.Errorf("error readHandshake -- %s", err.Error())
 		return err
 	}
 	certMsg, ok := msg.(*certificateMsg)
@@ -283,6 +301,7 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 
 	msg, err = c.readHandshake()
 	if err != nil {
+		log.Logger.Errorf("error readHandshake -- %s", err.Error())
 		return err
 	}
 
@@ -297,11 +316,13 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 		err = keyAgreement.processServerKeyExchange(c.config, hs.hello, hs.serverHello, c.peerCertificates[0], skx)
 		if err != nil {
 			c.sendAlert(alertUnexpectedMessage)
+			log.Logger.Errorf("error processServerKeyExchange -- %s", err.Error())
 			return err
 		}
 
 		msg, err = c.readHandshake()
 		if err != nil {
+			log.Logger.Errorf("error readHandshake -- %s", err.Error())
 			return err
 		}
 	}
@@ -315,11 +336,13 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 
 		if chainToSend, err = hs.getCertificate(certReq); err != nil {
 			c.sendAlert(alertInternalError)
+			log.Logger.Errorf("error getCertificate -- %s", err.Error())
 			return err
 		}
 
 		msg, err = c.readHandshake()
 		if err != nil {
+			log.Logger.Errorf("error readHandshake -- %s", err.Error())
 			return err
 		}
 	}
@@ -339,6 +362,7 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 		certMsg.certificates = chainToSend.Certificate
 		hs.finishedHash.Write(certMsg.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certMsg.marshal()); err != nil {
+			log.Logger.Errorf("error write certificateMsg -- %s", err.Error())
 			return err
 		}
 	}
@@ -346,11 +370,13 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 	preMasterSecret, ckx, err := keyAgreement.generateClientKeyExchange(c.config, hs.hello, c.peerCertificates[1])
 	if err != nil {
 		c.sendAlert(alertInternalError)
+		log.Logger.Errorf("error generateClientKeyExchange -- %s", err.Error())
 		return err
 	}
 	if ckx != nil {
 		hs.finishedHash.Write(ckx.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, ckx.marshal()); err != nil {
+			log.Logger.Errorf("error write ckx -- %s", err.Error())
 			return err
 		}
 	}
@@ -369,11 +395,13 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 		certVerify.signature, err = key.Sign(c.config.rand(), digest, nil)
 		if err != nil {
 			c.sendAlert(alertInternalError)
+			log.Logger.Errorf("error key.Sign digest -- %s", err.Error())
 			return err
 		}
 
 		hs.finishedHash.Write(certVerify.marshal())
 		if _, err := c.writeRecord(recordTypeHandshake, certVerify.marshal()); err != nil {
+			log.Logger.Errorf("error write certVerify-- %s", err.Error())
 			return err
 		}
 	}
@@ -385,6 +413,8 @@ func (hs *clientHandshakeStateGM) doFullHandshake() error {
 	}
 
 	hs.finishedHash.discardHandshakeBuffer()
+
+	log.Logger.Debug("doFullHandshake finished")
 
 	return nil
 }

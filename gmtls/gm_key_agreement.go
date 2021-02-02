@@ -10,15 +10,16 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rsa"
-	"encoding/asn1"
-	"encoding/base64"
 	"errors"
 	"io"
 	"math/big"
 
+	"encoding/asn1"
+
 	"github.com/mathews/gmsm/log"
 
 	"github.com/mathews/gmsm/sm2"
+	"github.com/mathews/gmsm/utils"
 	"github.com/mathews/gmsm/x509"
 
 	"golang.org/x/crypto/curve25519"
@@ -121,7 +122,12 @@ func (ka *ecdheKeyAgreementGM) generateServerKeyExchange(config *Config, signCer
 		if err != nil {
 			return nil, err
 		}
-		ecdhePublic = elliptic.Marshal(curve, x, y)
+		//FIXME
+		// ecdhePublic = elliptic.Marshal(curve, x, y)
+		ecdhePublic, err = utils.EllipticMarshal(curve, x, y)
+		if err != nil {
+			return nil, err
+		}
 	}
 	//	}
 	//
@@ -291,14 +297,18 @@ func (ka *ecdheKeyAgreementGM) generateClientKeyExchange(config *Config, clientH
 		preMasterSecret = make([]byte, (curve.Params().BitSize+7)>>3)
 		xBytes := x.Bytes()
 		copy(preMasterSecret[len(preMasterSecret)-len(xBytes):], xBytes)
-
-		serialized = elliptic.Marshal(curve, mx, my)
+		//FIXME
+		// serialized = elliptic.Marshal(curve, mx, my)
+		serialized, err = utils.EllipticMarshal(curve, mx, my)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	ckx := new(clientKeyExchangeMsg)
-	ckx.ciphertext = make([]byte, 1+len(serialized))
+	ckx.ciphertext = make([]byte, len(serialized))
 	ckx.ciphertext[0] = byte(len(serialized))
-	copy(ckx.ciphertext[1:], serialized)
+	copy(ckx.ciphertext[1:], serialized[1:])
 
 	return preMasterSecret, ckx, nil
 }
@@ -371,10 +381,10 @@ func (ka *eccKeyAgreementGM) processClientKeyExchange(config *Config, cert *Cert
 	plain, err := sm2.DecryptAsn1(sm2cert, cipher)
 
 	if err != nil {
-		log.Logger.Debugf("Decrypt error: %s\n", err.Error())
+		log.Logger.Errorf("Decrypt error: %s\n", err.Error())
 		return nil, err
 	}
-	log.Logger.Debugf("Decrypted key message: %s\n", base64.StdEncoding.EncodeToString(plain))
+	log.Logger.Debugf("Decrypted key message: %x", plain)
 	if len(plain) != 48 {
 		return nil, errClientKeyExchange
 	}
@@ -444,6 +454,7 @@ func (ka *eccKeyAgreementGM) generateClientKeyExchange(config *Config, clientHel
 	preMasterSecret[1] = byte(clientHello.vers)
 	_, err := io.ReadFull(config.rand(), preMasterSecret[2:])
 	if err != nil {
+		log.Logger.Errorf("error read random preMasterSecret -- %s", err.Error())
 		return nil, nil, err
 	}
 	pubKey := ka.encipherCert.PublicKey.(*ecdsa.PublicKey)
@@ -452,8 +463,11 @@ func (ka *eccKeyAgreementGM) generateClientKeyExchange(config *Config, clientHel
 	// encrypted, err := sm2.Encrypt(sm2PubKey, preMasterSecret, config.rand())
 	encrypted, err := sm2.EncryptAsn1(sm2PubKey, preMasterSecret, config.rand())
 	if err != nil {
+		log.Logger.Errorf("error EncryptAsn1 preMasterSecret -- %s", err.Error())
 		return nil, nil, err
 	}
+
+	log.Logger.Debugf("EncryptAsn1 key: %x", encrypted)
 	ckx := new(clientKeyExchangeMsg)
 	ckx.ciphertext = make([]byte, len(encrypted)+2)
 	ckx.ciphertext[0] = byte(len(encrypted) >> 8)

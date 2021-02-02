@@ -19,9 +19,10 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/rsa"
-	"encoding/asn1"
 	"errors"
 	"fmt"
+
+	"github.com/mathews/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 )

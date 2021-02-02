@@ -28,7 +28,9 @@ import (
 	"math/big"
 
 	"github.com/mathews/gmsm/log"
+	"github.com/mathews/gmsm/utils"
 
+	rasn1 "github.com/mathews/asn1"
 	"github.com/mathews/gmsm/sm3"
 )
 
@@ -256,10 +258,43 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 
 		x1, y1 := curve.ScalarBaseMult(k.Bytes())
 		x2, y2 := curve.ScalarMult(pub.X, pub.Y, k.Bytes())
-		x1Buf := x1.Bytes()
-		y1Buf := y1.Bytes()
-		x2Buf := x2.Bytes()
-		y2Buf := y2.Bytes()
+		//FIXME
+		// x1Buf := x1.Bytes()
+		// y1Buf := y1.Bytes()
+		// x2Buf := x2.Bytes()
+		// y2Buf := y2.Bytes()
+		log.Logger.Debugf("x1 value: %d", x1)
+		log.Logger.Debugf("x1 hex: %x", x1)
+		x1Buf, err := utils.MarshalBigInt(x1)
+		if err != nil {
+			return nil, err
+		}
+		log.Logger.Debugf("marshaled x1 hex: %x", x1Buf)
+
+		log.Logger.Debugf("y1 value: %d", y1)
+		log.Logger.Debugf("y1 hex: %x", y1)
+		y1Buf, err := utils.MarshalBigInt(y1)
+		if err != nil {
+			return nil, err
+		}
+		log.Logger.Debugf("marshaled y1 hex: %x", y1Buf)
+
+		log.Logger.Debugf("x2 value: %d", x2)
+		log.Logger.Debugf("x2 hex: %x", x2)
+		x2Buf, err := utils.MarshalBigInt(x2)
+		if err != nil {
+			return nil, err
+		}
+		log.Logger.Debugf("marshaled x2 hex: %x", x2Buf)
+
+		log.Logger.Debugf("y2 value: %d", y2)
+		log.Logger.Debugf("y2 hex: %x", y2)
+		y2Buf, err := utils.MarshalBigInt(y2)
+		log.Logger.Debugf("marshaled y2 hex: %x", y2Buf)
+
+		if err != nil {
+			return nil, err
+		}
 		if n := len(x1Buf); n < 32 {
 			x1Buf = append(zeroByteSlice()[:32-n], x1Buf...)
 		}
@@ -273,12 +308,17 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 			y2Buf = append(zeroByteSlice()[:32-n], y2Buf...)
 		}
 
+		log.Logger.Debugf("data of x2Buf: %x, length of x2Buf: %d", x2Buf, len(x2Buf))
+		log.Logger.Debugf("data of y2Buf: %x, length of y2Buf: %d", y2Buf, len(y2Buf))
+
 		c = append(c, x1Buf...) // x分量
 		c = append(c, y1Buf...) // y分量
 
 		tm := []byte{}
+
 		tm = append(tm, x2Buf...)
 		tm = append(tm, data...)
+
 		tm = append(tm, y2Buf...)
 		h := sm3.Sm3Sum(tm)
 
@@ -292,6 +332,9 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		for i := 0; i < length; i++ {
 			c[96+i] ^= data[i]
 		}
+
+		log.Logger.Debugf("encrypted data: %x", c)
+
 		//encode x,y point, according to 4.2.9 of GM/T 003.1-2012, you should preceed with PC 0x04
 		return append([]byte{0x04}, c...), nil
 	}
@@ -301,8 +344,19 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	data = data[1:]
 	length := len(data) - 96
 	curve := priv.Curve
+	// FIXME
 	x := new(big.Int).SetBytes(data[:32])
 	y := new(big.Int).SetBytes(data[32:64])
+	// x, err := utils.UnmarshalBigInt(data[:32])
+	// if err != nil {
+	// 	log.Logger.Errorf("error UnmarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
+	// y, err := utils.UnmarshalBigInt(data[32:64])
+	// if err != nil {
+	// 	log.Logger.Errorf("error UnmarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
 	x2, y2 := curve.ScalarMult(x, y, priv.D.Bytes())
 	x2Buf := x2.Bytes()
 	y2Buf := y2.Bytes()
@@ -321,6 +375,24 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	}
 	log.Logger.Debugf("decypted text length: %d\n", len(c))
 	log.Logger.Debugf("decypted text: %x\n", c)
+
+	// x2Buf, err = utils.MarshalBigInt(x2)
+	// if err != nil {
+	// 	log.Logger.Errorf("error MarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
+	// y2Buf, err = utils.MarshalBigInt(y2)
+	// if err != nil {
+	// 	log.Logger.Errorf("error MarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
+	// if n := len(x2Buf); n < 32 {
+	// 	x2Buf = append(zeroByteSlice()[:32-n], x2Buf...)
+	// }
+	// if n := len(y2Buf); n < 32 {
+	// 	y2Buf = append(zeroByteSlice()[:32-n], y2Buf...)
+	// }
+
 	tm := []byte{}
 	tm = append(tm, x2Buf...)
 	tm = append(tm, c...)
@@ -329,6 +401,7 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	log.Logger.Debugf("sm3sum indata: %x\n", tm)
 	log.Logger.Debugf("computed sum: %x len: %d\n", h, len(h))
 	log.Logger.Debugf("sum in data: %x  len: %d\n", data[64:96], len(data[64:96]))
+
 	if bytes.Compare(h, data[64:96]) != 0 {
 		return c, errors.New("Decrypt: Sm3Sum failed to decrypt")
 	}
@@ -452,8 +525,10 @@ sm2加密，返回asn.1编码格式的密文内容
 func EncryptAsn1(pub *PublicKey, data []byte, rand io.Reader) ([]byte, error) {
 	cipher, err := Encrypt(pub, data, rand)
 	if err != nil {
+		log.Logger.Errorf("error Encrypt data -- %s", err.Error())
 		return nil, err
 	}
+	log.Logger.Debugf("raw encrypted data %x", cipher)
 	return CipherMarshal(cipher)
 }
 
@@ -482,21 +557,23 @@ func DecryptAsn1(pub *PrivateKey, data []byte) ([]byte, error) {
 *  CipherText
  */
 func CipherMarshal(data []byte) ([]byte, error) {
-	data = data[1:]
-	x := new(big.Int).SetBytes(data[:32])
-	y := new(big.Int).SetBytes(data[32:64])
-	hash := data[64:96]
-	cipherText := data[96:]
-	return asn1.Marshal(sm2Cipher{x, y, hash, cipherText})
-}
-
-func encodeNegNumber(num *big.Int) ([]byte, error) {
-	btxt, err := asn1.Marshal(num)
+	ddata := data[1:]
+	//FIXME
+	// x := new(big.Int).SetBytes(ddata[:32])
+	// y := new(big.Int).SetBytes(ddata[32:64])
+	x, err := utils.UnmarshalBigInt(ddata[:32])
 	if err != nil {
+		log.Logger.Errorf("error UnmarshalBigInt -- %s", err.Error())
 		return nil, err
-	} else {
-		return btxt[2:], nil
 	}
+	y, err := utils.UnmarshalBigInt(ddata[32:64])
+	if err != nil {
+		log.Logger.Errorf("error UnmarshalBigInt -- %s", err.Error())
+		return nil, err
+	}
+	hash := ddata[64:96]
+	cipherText := ddata[96:]
+	return rasn1.Marshal(sm2Cipher{x, y, hash, cipherText})
 }
 
 /*
@@ -505,27 +582,36 @@ sm2密文asn.1编码格式转C1|C3|C2拼接格式
 func CipherUnmarshal(data []byte) ([]byte, error) {
 	var cipher sm2Cipher
 
+	//FIXME the encrypted bigint may not be minimally encoded, the originally asn1.Unmarshal will return an error
 	_, err := asn1.Unmarshal(data, &cipher)
 	if err != nil {
 		return nil, err
 	}
 	//FIXME asn1 may transform the negative bignum, you should tranform back before going
 	// x := cipher.XCoordinate.Bytes()
-	x, err := encodeNegNumber(cipher.XCoordinate)
+	x, err := utils.MarshalBigInt(cipher.XCoordinate)
 	if err != nil {
+		log.Logger.Errorf("error MarshalBigInt %s", err.Error())
 		return nil, err
 	}
+	log.Logger.Debugf("Marshaled x %x", x)
+
 	// y := cipher.YCoordinate.Bytes()
-	y, err := encodeNegNumber(cipher.YCoordinate)
+	y, err := utils.MarshalBigInt(cipher.YCoordinate)
 	if err != nil {
+		log.Logger.Errorf("error MarshalBigInt %s", err.Error())
 		return nil, err
 	}
+	log.Logger.Debugf("Marshaled y %x", y)
+
 	hash := cipher.HASH
 	if err != nil {
+		log.Logger.Errorf("error getting hash %s", err.Error())
 		return nil, err
 	}
 	cipherText := cipher.CipherText
 	if err != nil {
+		log.Logger.Errorf("error getting CipherText %s", err.Error())
 		return nil, err
 	}
 	if n := len(x); n < 32 {

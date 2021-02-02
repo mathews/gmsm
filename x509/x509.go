@@ -29,7 +29,6 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -39,6 +38,8 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	"encoding/asn1"
 
 	"github.com/mathews/gmsm/sm2"
 
