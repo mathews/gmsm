@@ -11,7 +11,9 @@ import (
 
 func TestCheckByteArray(t *testing.T) {
 	// t.SkipNow()
-	bStr := "fffe383c3cd8ef6c9dae70fc5bcf58c321687454aaf0505acfd648e610b50649"
+	bStr := "01075bea74ced3d3b42cc9184efbe14c13e0307d4b1fbe7653973c74daa174b11e"
+	// bStr := "fffe383c3cd8ef6c9dae70fc5bcf58c321687454aaf0505acfd648e610b50649"
+	// bStr := "00b1a6dea4fb248782b6ea3672a891344788fe5222b9a0dfbebcd7e7700976cd80"
 	byteArray, err := hex.DecodeString(bStr)
 	if err != nil {
 		fmt.Printf("error parse hex %s\n", err.Error())
@@ -24,6 +26,19 @@ func TestCheckByteArray(t *testing.T) {
 	}
 	fmt.Printf("hex: %x\n", bint)
 	fmt.Printf("val: %d\n", bint)
+
+	// bbStr := "b1a6dea4fb248782b6ea3672a891344788fe5222b9a0dfbebcd7e7700976cd80"
+	// bbStr := "fffe383c3cd8ef6c9dae70fc5bcf58c321687454aaf0505acfd648e610b50649"
+	bbStr := "075bea74ced3d3b42cc9184efbe14c13e0307d4b1fbe7653973c74daa174b11e"
+	bbyteArray, err := hex.DecodeString(bbStr)
+	if err != nil {
+		fmt.Printf("error parse hex %s\n", err.Error())
+		t.FailNow()
+	}
+	b := new(big.Int).SetBytes(bbyteArray)
+	fmt.Printf("b hex: %x\n", b)
+	fmt.Printf("b val: %d\n", b)
+
 	bbb, err := MarshalBigInt(bint)
 	if err != nil {
 		fmt.Printf("error MarshalBigInt %s\n", err.Error())

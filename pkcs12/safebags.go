@@ -8,7 +8,7 @@ import (
 	"crypto/rand"
 	"errors"
 
-	"github.com/mathews/asn1"
+	"encoding/asn1"
 )
 
 var (

@@ -30,7 +30,7 @@ import (
 	"github.com/mathews/gmsm/log"
 	"github.com/mathews/gmsm/utils"
 
-	rasn1 "github.com/mathews/asn1"
+	// rasn1 "github.com/mathews/asn1"
 	"github.com/mathews/gmsm/sm3"
 )
 
@@ -247,6 +247,10 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
  *  CipherText
  */
 func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
+
+	log.Logger.Debugf("public key-> X %x, Y %x", pub.X, pub.Y)
+	log.Logger.Debugf("data  %x", data)
+
 	length := len(data)
 	for {
 		c := []byte{}
@@ -265,6 +269,7 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 		// y2Buf := y2.Bytes()
 		log.Logger.Debugf("x1 value: %d", x1)
 		log.Logger.Debugf("x1 hex: %x", x1)
+
 		x1Buf, err := utils.MarshalBigInt(x1)
 		if err != nil {
 			return nil, err
@@ -308,8 +313,8 @@ func Encrypt(pub *PublicKey, data []byte, random io.Reader) ([]byte, error) {
 			y2Buf = append(zeroByteSlice()[:32-n], y2Buf...)
 		}
 
-		log.Logger.Debugf("data of x2Buf: %x, length of x2Buf: %d", x2Buf, len(x2Buf))
-		log.Logger.Debugf("data of y2Buf: %x, length of y2Buf: %d", y2Buf, len(y2Buf))
+		log.Logger.Debugf("data of x1Buf: %x, length of x1Buf: %d", x1Buf, len(x1Buf))
+		log.Logger.Debugf("data of y1Buf: %x, length of y1Buf: %d", y1Buf, len(y1Buf))
 
 		c = append(c, x1Buf...) // x分量
 		c = append(c, y1Buf...) // y分量
@@ -344,9 +349,11 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	data = data[1:]
 	length := len(data) - 96
 	curve := priv.Curve
+	log.Logger.Debugf("private key-> D %x, X %x, Y %x", priv.D, priv.X, priv.Y)
 	// FIXME
 	x := new(big.Int).SetBytes(data[:32])
 	y := new(big.Int).SetBytes(data[32:64])
+	log.Logger.Debugf("decoded x %x, y %x", x, y)
 	// x, err := utils.UnmarshalBigInt(data[:32])
 	// if err != nil {
 	// 	log.Logger.Errorf("error UnmarshalBigInt %s", err.Error())
@@ -360,6 +367,16 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	x2, y2 := curve.ScalarMult(x, y, priv.D.Bytes())
 	x2Buf := x2.Bytes()
 	y2Buf := y2.Bytes()
+	// x2Buf, err := utils.MarshalBigInt(x2)
+	// if err != nil {
+	// 	log.Logger.Errorf("error MarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
+	// y2Buf, err := utils.MarshalBigInt(y2)
+	// if err != nil {
+	// 	log.Logger.Errorf("error MarshalBigInt %s", err.Error())
+	// 	return nil, err
+	// }
 	if n := len(x2Buf); n < 32 {
 		x2Buf = append(zeroByteSlice()[:32-n], x2Buf...)
 	}
@@ -370,11 +387,12 @@ func Decrypt(priv *PrivateKey, data []byte) ([]byte, error) {
 	if !ok {
 		return nil, errors.New("Decrypt: kdf failed to decrypt")
 	}
+
 	for i := 0; i < length; i++ {
 		c[i] ^= data[i+96]
 	}
-	log.Logger.Debugf("decypted text length: %d\n", len(c))
-	log.Logger.Debugf("decypted text: %x\n", c)
+	log.Logger.Debugf("decypted text length: %d", len(c))
+	log.Logger.Debugf("decypted text: %x", c)
 
 	// x2Buf, err = utils.MarshalBigInt(x2)
 	// if err != nil {
@@ -537,14 +555,14 @@ sm2解密，解析asn.1编码格式的密文内容
 */
 func DecryptAsn1(pub *PrivateKey, data []byte) ([]byte, error) {
 
-	log.Logger.Debugf("DecryptAsn1 -- going to Unmarshal %x\n", data)
+	log.Logger.Debugf("DecryptAsn1 -- going to Unmarshal %x", data)
 
 	cipher, err := CipherUnmarshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Logger.Debugf("DecryptAsn1 -- going to Decrypt %x\n", cipher)
+	log.Logger.Debugf("DecryptAsn1 -- going to Decrypt %x", cipher)
 	return Decrypt(pub, cipher)
 }
 
@@ -573,7 +591,7 @@ func CipherMarshal(data []byte) ([]byte, error) {
 	}
 	hash := ddata[64:96]
 	cipherText := ddata[96:]
-	return rasn1.Marshal(sm2Cipher{x, y, hash, cipherText})
+	return asn1.Marshal(sm2Cipher{x, y, hash, cipherText})
 }
 
 /*

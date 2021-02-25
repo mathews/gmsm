@@ -5,7 +5,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/mathews/asn1"
+	"encoding/asn1"
+	// "github.com/mathews/asn1"
 	"github.com/mathews/gmsm/log"
 )
 
@@ -13,17 +14,15 @@ import (
 //if the bigint is negative, don't use big.Int.Bytes() to encode the bigint
 func MarshalBigInt(num *big.Int) ([]byte, error) {
 
+	log.Logger.Debugf("marshalling BigInt %x", num)
+
 	btxt, err := asn1.Marshal(num)
 	if err != nil {
 		return nil, err
 	} else {
 		log.Logger.Debugf("buf lenth %d, content %x", len(btxt), btxt)
-		var ret []byte
-		if len(btxt) > 34 && btxt[2] == 0 {
-			ret = btxt[3:]
-		} else {
-			ret = btxt[2:]
-		}
+		ret := btxt[2:]
+
 		err = checkInteger(ret)
 		if err != nil {
 			log.Logger.Errorf("asn1 Marshal %x as %x", num, ret)
@@ -47,7 +46,7 @@ func checkInteger(bytes []byte) error {
 	}
 	//FIXME
 	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 == 0x80) {
-		log.Logger.Error("integer not minimally-encoded")
+		log.Logger.Errorf("integer %x not minimally-encoded", bytes)
 		return errors.New("integer not minimally-encoded")
 	}
 	return nil
@@ -55,27 +54,34 @@ func checkInteger(bytes []byte) error {
 
 // UnmarshalBigInt correctly decode a bigint, even a negative bigint
 func UnmarshalBigInt(bytes []byte) (*big.Int, error) {
-	log.Logger.Debugf("UnmarshalBigInt %x\n", bytes)
+	log.Logger.Debugf("UnmarshalBigInt %x", bytes)
 	if err := checkInteger(bytes); err != nil {
 		ret := new(big.Int)
 		ret.SetBytes(bytes)
 		return ret, nil
 	}
 	ret := new(big.Int)
-	if len(bytes) > 0 && bytes[0]&0x80 != 0 {
-		// This is a negative number.
-		notBytes := make([]byte, len(bytes))
-		for i := range notBytes {
-			notBytes[i] = ^bytes[i]
+	if len(bytes) > 0 {
+		// if len(bytes) > 32 && bytes[0] == 1 {
+		// 	ret.SetBytes(bytes[1:])
+		// 	ret = ret.Neg(ret)
+
+		// } else
+		if bytes[0]&0x80 == 0x80 {
+			// This is a negative number.
+			notBytes := make([]byte, len(bytes))
+			for i := range notBytes {
+				notBytes[i] = ^bytes[i]
+			}
+			ret.SetBytes(notBytes)
+			ret.Add(ret, bigOne)
+			ret = ret.Neg(ret)
+			log.Logger.Debugf("Unmarshaled negative BigInt as %d\n", ret)
+		} else {
+			ret.SetBytes(bytes)
 		}
-		ret.SetBytes(notBytes)
-		ret.Add(ret, bigOne)
-		ret.Neg(ret)
-		log.Logger.Debugf("Unmarshaled BigInt as %d\n", ret)
-		return ret, nil
 	}
-	ret.SetBytes(bytes)
-	log.Logger.Debugf("Unmarshaled BigInt as %d\n", ret)
+	log.Logger.Debugf("Unmarshaled BigInt as %d", ret)
 	return ret, nil
 }
 
